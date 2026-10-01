@@ -15,6 +15,33 @@ export class ApiError extends Error {
 
 export const BACKEND_LABEL = BASE || 'http://localhost:3001 (via the Vite proxy)'
 
+// A backend on another machine (e.g. Render's free tier) may need up to a minute to wake up.
+const REMOTE = Boolean(BASE) && !/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(BASE)
+export const REMOTE_BACKEND = REMOTE
+
+// Founder access code for a protected backend. Kept only in this browser and sent as a header.
+const ACCESS_KEY = 'ai-startup-team.accessCode'
+export function getAccessCode() {
+  try {
+    return localStorage.getItem(ACCESS_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+export function setAccessCode(code) {
+  try {
+    if (code) localStorage.setItem(ACCESS_KEY, code)
+    else localStorage.removeItem(ACCESS_KEY)
+  } catch {
+    // storage unavailable: the code only lasts for this page view
+  }
+}
+
+// Preview links from a hosted backend may be relative to the backend.
+export function resolveBackendUrl(url) {
+  return url && url.startsWith('/') ? BASE + url : url
+}
+
 // The GitHub Pages build is static: there is no backend to call, so requests fail fast with a clear message.
 export const STATIC_SITE = import.meta.env.VITE_STATIC_SITE === 'true' && !BASE
 
@@ -26,9 +53,10 @@ export async function apiRequest(path, { method = 'GET', body, timeoutMs = 15000
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   let res
   try {
+    const code = getAccessCode()
     res = await fetch(BASE + path, {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(code ? { 'X-Access-Code': code } : {}) },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     })
@@ -61,5 +89,5 @@ export async function apiRequest(path, { method = 'GET', body, timeoutMs = 15000
 }
 
 export function getHealth() {
-  return apiRequest('/api/health', { timeoutMs: 4000 })
+  return apiRequest('/api/health', { timeoutMs: REMOTE ? 75000 : 4000 })
 }

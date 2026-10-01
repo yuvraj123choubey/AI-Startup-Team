@@ -7,6 +7,7 @@ import WorkflowGraph from '../components/WorkflowGraph'
 import RunLog from '../components/RunLog'
 import EngineSwitch from '../components/EngineSwitch'
 import Icon from '../components/Icon'
+import { REMOTE_BACKEND } from '../services/apiClient'
 
 const MODES = [
   { id: 'analyze', label: 'Analyze', hint: 'Five role reports and a founder brief' },
@@ -65,7 +66,8 @@ export default function NewTaskPage({
       ? 'All five roles have reported. Nothing has been acted on. The brief now waits for your review.'
       : 'Developer first, then Security and Finance review the plan, Legal checks the risks, and Operations combines it all for you.'
 
-  const buildBlocked = build && ai.backend.status === 'offline'
+  const buildLocked = build && ai.backend.status === 'online' && !ai.backendReady
+  const buildBlocked = build && (ai.backend.status === 'offline' || buildLocked)
   const showError = !build && error && !running
   const canSwitch = error?.engine === 'openai' && error.code !== 'partial'
 
@@ -105,7 +107,15 @@ export default function NewTaskPage({
           </div>
           <p className="engine-note">{MODES.find((m) => m.id === taskMode).hint}</p>
         </div>
-        <EngineSwitch engine={ai.engine} backend={ai.backend} onChoose={ai.onChooseEngine} onRefresh={ai.onRefreshBackend} disabled={running || buildState.submitting} />
+        <EngineSwitch
+          engine={ai.engine}
+          backend={ai.backend}
+          onChoose={ai.onChooseEngine}
+          onRefresh={ai.onRefreshBackend}
+          onUnlock={ai.onUnlock}
+          onLock={ai.onLock}
+          disabled={running || buildState.submitting}
+        />
       </div>
 
       {!brief.name && (
@@ -124,16 +134,19 @@ export default function NewTaskPage({
         <p className="banner is-error quiet-target" role="alert">
           <Icon name="alert" size={18} />
           <span>
-            Build Project needs the backend, because it writes files and runs builds on this computer.{' '}
-            {ai.backend.code === 'static_site' ? (
+            {buildLocked ? (
+              <>Build Project is protected on this backend. Enter the founder access code above to build projects.</>
+            ) : ai.backend.code === 'static_site' ? (
               <>
-                This GitHub Pages version has no backend: run the project locally with <code>npm run dev:all</code> to build projects.
+                Build Project needs the backend, because it writes files and runs builds. This GitHub Pages version has no backend: run the project locally with{' '}
+                <code>npm run dev:all</code> to build projects.
               </>
             ) : (
               <>
-                Start it with <code>npm run server</code>, then{' '}
+                Build Project needs the backend, because it writes files and runs builds.{' '}
+                {REMOTE_BACKEND ? 'The backend is not answering right now. ' : <>Start it with <code>npm run server</code>, then </>}
                 <button type="button" className="text-button inline" onClick={ai.onRefreshBackend}>
-                  check again
+                  {REMOTE_BACKEND ? 'Try again' : 'check again'}
                 </button>
                 .
               </>

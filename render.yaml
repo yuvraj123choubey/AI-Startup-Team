@@ -1,0 +1,31 @@
+# Render Blueprint for the AI Startup Team backend (Express).
+# Render → New → Blueprint → pick this repository. Render reads this file.
+# You will be asked for the values marked "sync: false" (they are never stored in git).
+services:
+  - type: web
+    name: ai-startup-team-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: node server/index.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOSTED
+        value: "true"
+      # Default engine. Visitors without the access code always get Simulated mode.
+      - key: AI_MODE
+        value: mock
+      # The GitHub Pages site that is allowed to call this backend.
+      - key: ALLOWED_ORIGINS
+        value: https://yuvraj123choubey.github.io
+      - key: MAX_PROJECTS
+        value: "20"
+      # Required: protects Live AI and Build Project. Choose a long, private code.
+      - key: ACCESS_CODE
+        sync: false
+      # Optional: needed only for Live AI. Leave empty to use Simulated mode only.
+      - key: OPENAI_API_KEY
+        sync: false

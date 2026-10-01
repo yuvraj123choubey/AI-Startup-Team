@@ -24,4 +24,19 @@ export const config = {
   openaiBaseUrl: clean(process.env.OPENAI_BASE_URL) || undefined,
   openaiTimeoutMs: Number(process.env.OPENAI_TIMEOUT_MS) || 120000,
   workspaceDir: path.join(ROOT_DIR, 'workspace-projects'),
+
+  // ----- Hosting on the public web (e.g. Render) -----
+  // HOSTED=true (Render sets RENDER=true automatically): previews are served by this backend
+  // at /preview/<id>/ instead of separate local servers, and server paths are not shown.
+  hosted: clean(process.env.HOSTED) === 'true' || clean(process.env.RENDER) === 'true',
+  // Public base URL of this backend, used for preview links. Render provides RENDER_EXTERNAL_URL.
+  publicUrl: (clean(process.env.PUBLIC_URL) || clean(process.env.RENDER_EXTERNAL_URL)).replace(/\/+$/, ''),
+  // Founder access code. When set, Live AI and Build Project require it (sent as X-Access-Code).
+  accessCode: clean(process.env.ACCESS_CODE),
+  // Extra browser origins allowed to call the API, comma-separated (localhost is always allowed).
+  allowedOrigins: clean(process.env.ALLOWED_ORIGINS)
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean),
+  maxProjects: Number(process.env.MAX_PROJECTS) || 30,
 }

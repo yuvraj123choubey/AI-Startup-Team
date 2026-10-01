@@ -1,6 +1,7 @@
 # Builds the frontend and publishes it to GitHub Pages on every push to main.
-# Pages is static hosting, so this is the demo version: Analyze mode in Simulated mode.
-# Build Project and Live AI need the Express backend (run locally with: npm run dev:all).
+# Pages only hosts static files. Set the repository variable BACKEND_URL (Settings → Secrets and
+# variables → Actions → Variables) to the URL of the hosted backend (see render.yaml) to enable
+# Build Project and Live AI on the site. Without it, the site runs Analyze in Simulated mode only.
 name: Deploy to GitHub Pages
 
 on:
@@ -30,6 +31,8 @@ jobs:
       - run: npm run build
         env:
           PAGES_BASE: /${{ github.event.repository.name }}/
+          VITE_API_URL: ${{ vars.BACKEND_URL }}
+          # Only takes effect when BACKEND_URL is empty.
           VITE_STATIC_SITE: 'true'
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -9,6 +9,7 @@ import ProjectFiles from '../components/ProjectFiles'
 import SafetyNotice from '../components/SafetyNotice'
 import Icon from '../components/Icon'
 import { AI_ROLES, getRole } from '../data/aiRoles'
+import { resolveBackendUrl } from '../services/apiClient'
 import { BUILD_STATUS, decideApproval, deleteProject, getProject, isProjectActive, retryProject, runProject, stopProject } from '../services/projectService'
 
 const formatDate = (iso) => (iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—')
@@ -127,7 +128,9 @@ export default function ProjectDetailPage({ projectId, onNavigate }) {
   const openIssues = issues.filter((f) => f.status === 'open').length
   const notes = project.security.findings.filter((f) => f.severity === 'info')
   const reviewQuestions = project.legal?.questions.filter((q) => q.professionalReview).length ?? 0
-  const pathForUrl = project.absolutePath.replace(/\\/g, '/')
+  // On a hosted backend there is no local folder: no VS Code link or path, and previews are public URLs.
+  const pathForUrl = project.absolutePath ? project.absolutePath.replace(/\\/g, '/') : null
+  const previewUrl = project.preview ? resolveBackendUrl(project.preview.url) : null
 
   const endStatus = { complete: 'ready', 'review-required': 'warning', failed: 'failed' }[project.status]
   const endSub = { complete: 'Project complete', 'review-required': 'Founder review required', failed: 'Stopped' }[project.status] || 'Waiting for the team'
@@ -294,13 +297,15 @@ export default function ProjectDetailPage({ projectId, onNavigate }) {
           </dl>
 
           <div className="report-actions">
-            <a className="btn btn-ghost" href={`vscode://file/${pathForUrl}`} title="Opens the folder in VS Code (if installed)">
-              <Icon name="file" size={16} /> Open project
-            </a>
+            {pathForUrl && (
+              <a className="btn btn-ghost" href={`vscode://file/${pathForUrl}`} title="Opens the folder in VS Code (if installed)">
+                <Icon name="file" size={16} /> Open project
+              </a>
+            )}
             {project.preview ? (
               <>
-                <a className="btn btn-primary" href={project.preview.url} target="_blank" rel="noopener noreferrer">
-                  <Icon name="play" size={16} /> Open {project.preview.url}
+                <a className="btn btn-primary" href={previewUrl} target="_blank" rel="noopener noreferrer">
+                  <Icon name="play" size={16} /> {project.preview.hosted ? 'Open the running project' : `Open ${previewUrl}`}
                 </a>
                 <button type="button" className="btn btn-ghost" disabled={!!action.busy} onClick={() => perform('stop', () => stopProject(project.id))}>
                   Stop
@@ -325,13 +330,22 @@ export default function ProjectDetailPage({ projectId, onNavigate }) {
               <Icon name="results" size={16} /> View final report
             </button>
           </div>
-          <p className="path-line">
-            <span className="mono">{project.absolutePath}</span>
-            <button type="button" className="text-button" onClick={copyPath}>
-              {copied ? 'Copied' : 'Copy path'}
-            </button>
-          </p>
-          {project.preview && <p className="note">Running locally at {project.preview.url} (this computer only). The preview serves the production build from dist/.</p>}
+          {project.absolutePath && (
+            <p className="path-line">
+              <span className="mono">{project.absolutePath}</span>
+              <button type="button" className="text-button" onClick={copyPath}>
+                {copied ? 'Copied' : 'Copy path'}
+              </button>
+            </p>
+          )}
+          {project.preview &&
+            (project.preview.hosted ? (
+              <p className="note">
+                Published at <span className="mono">{previewUrl}</span>. Anyone with the link can open it until you click Stop. It is a prototype: do not enter real passwords or customer data.
+              </p>
+            ) : (
+              <p className="note">Running locally at {previewUrl} (this computer only). The preview serves the production build from dist/.</p>
+            ))}
 
           {project.operations.nextSteps?.length > 0 && (
             <div className="report-block">

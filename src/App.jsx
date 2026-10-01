@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, MotionConfig } from 'motion/react'
 import Navbar from './components/Navbar'
 import InteractiveBackground from './components/InteractiveBackground'
@@ -14,7 +14,7 @@ import AboutPage from './pages/AboutPage'
 import { SAMPLE_BRIEF, EXAMPLE_TASKS } from './data/sampleBrief'
 import { getRole } from './data/aiRoles'
 import { runAiTeam } from './services/aiService'
-import { getHealth } from './services/apiClient'
+import { getHealth, setAccessCode } from './services/apiClient'
 import { createProject } from './services/projectService'
 import { loadFromStorage, saveToStorage } from './utils/storage'
 
@@ -65,20 +65,44 @@ export default function App() {
   const [taskMode, setTaskMode] = useState(() => loadFromStorage(STORAGE_KEYS.taskMode, 'analyze'))
   const [buildState, setBuildState] = useState({ submitting: false, error: null })
 
-  // The server's AI_MODE is the default engine; the founder can switch in the UI.
-  const engine = enginePref || (backend.aiMode === 'openai' ? 'openai' : 'mock')
+  // Backend reachable and, if it is protected, unlocked with the founder access code.
+  const backendReady = backend.status === 'online' && (!backend.accessCodeRequired || backend.accessGranted)
+  // The server's AI_MODE is the default engine (only if Live AI can actually be used); the founder can switch in the UI.
+  const engine = enginePref || (backend.aiMode === 'openai' && backendReady && backend.openaiConfigured ? 'openai' : 'mock')
+  const checking = useRef(false)
 
   // A decision only counts for the analysis it was made on.
   const decision = savedDecision && analysis && savedDecision.analysisId === analysis.id ? savedDecision : null
 
   const refreshBackend = useCallback(async () => {
+    // A sleeping hosted backend can take a minute to answer: never stack health checks.
+    if (checking.current) return null
+    checking.current = true
     try {
       const health = await getHealth()
       setBackend({ status: 'online', ...health })
+      return health
     } catch (err) {
       setBackend({ status: 'offline', message: err.message, code: err.code })
+      return null
+    } finally {
+      checking.current = false
     }
   }, [])
+
+  // Save the founder access code in this browser and check it against the backend.
+  async function unlock(code) {
+    setAccessCode(code.trim())
+    const health = await refreshBackend()
+    if (health && !health.accessGranted) setAccessCode('')
+    return Boolean(health?.accessGranted)
+  }
+
+  function lock() {
+    setAccessCode('')
+    if (enginePref === 'openai') chooseEngine('mock')
+    refreshBackend()
+  }
 
   useEffect(() => {
     // Health check on load, then every 20 seconds so the UI notices when the backend starts or stops.
@@ -198,7 +222,7 @@ export default function App() {
     runTask(EXAMPLE_TASKS[0])
   }
 
-  const aiContext = { engine, backend, onChooseEngine: chooseEngine, onRefreshBackend: refreshBackend }
+  const aiContext = { engine, backend, backendReady, onChooseEngine: chooseEngine, onRefreshBackend: refreshBackend, onUnlock: unlock, onLock: lock }
 
   function renderPage() {
     switch (page) {

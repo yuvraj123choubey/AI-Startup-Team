@@ -145,8 +145,13 @@ export function publicProject(project, { withActivity = true } = {}) {
   const out = {
     ...rest,
     briefName: brief?.name || '',
-    absolutePath: projectDir(project.id),
-    preview: getPreview(project.id),
+    // Server folder paths mean nothing to a visitor of a hosted backend.
+    absolutePath: config.hosted ? null : projectDir(project.id),
+    preview: config.hosted
+      ? project.previewEnabled && project.buildStatus === 'passed'
+        ? { url: `${config.publicUrl}/preview/${project.id}/`, hosted: true }
+        : null
+      : getPreview(project.id),
   }
   if (!withActivity) {
     delete out.activity

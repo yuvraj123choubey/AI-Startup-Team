@@ -141,6 +141,27 @@ npm run preview    # serves dist/ (keep the backend running for Build mode / Liv
 npm run lint
 ```
 
+## Putting it on the web
+
+The frontend is published to **GitHub Pages** by `.github/workflows/deploy.yml` on every push:
+https://yuvraj123choubey.github.io/AI-Startup-Team/
+
+Pages only hosts static files, so the backend runs on **Render** (free tier) using `render.yaml`:
+
+1. Sign in at https://render.com with GitHub → **New → Blueprint** → choose this repository → **Apply**.
+2. Render asks for two secret values:
+   - `ACCESS_CODE`: a long, private code. Live AI and Build Project only work after it is entered on the New Task page. Visitors without it can use Simulated Analyze.
+   - `OPENAI_API_KEY`: optional; leave empty to use Simulated mode only.
+3. When the service is live, copy its URL (for example `https://ai-startup-team-api.onrender.com`).
+4. In GitHub: **Settings → Secrets and variables → Actions → Variables → New repository variable**: name `BACKEND_URL`, value = that URL (no trailing slash).
+5. **Actions → Deploy to GitHub Pages → Run workflow** (or push any commit). The site now talks to the backend.
+
+To make Live AI the default engine, set `AI_MODE=openai` in Render's environment settings.
+
+Safeguards on the hosted backend: the access code (checked in constant time, with wrong-code attempts rate-limited), per-visitor rate limits for AI requests and builds, a cap on the number of projects (`MAX_PROJECTS`), and CORS limited to the GitHub Pages origin. **Run project** publishes the built project at `<backend>/preview/<id>/` until you click **Stop**.
+
+Free-tier caveats: the service sleeps after about 15 minutes without traffic, so the first visit can take up to a minute while it wakes. Its disk is temporary, so generated projects disappear when the service restarts or redeploys. Download anything you want to keep from **View files**.
+
 ## Mock mode vs. real AI mode
 
 **Simulated (mock) mode** (`AI_MODE=mock`, the default) needs no API key.
@@ -192,5 +213,6 @@ AI OUTPUT → VERIFY → COMPARE → HUMAN DECISION
 - The automated security checks are simple pattern rules, not a professional audit.
 - Simulated answers are rule-based; tasks outside login, payments, data/analytics and general product work get generic Analyze answers.
 - Live AI quality depends on the model, and every call costs money on your OpenAI account. A live Build run makes roughly 6–12 model calls.
+- On the free hosted backend, projects are temporary (lost on restart) and the first request after idle is slow.
 - Projects are built one at a time (later ones wait as *Queued*). A build interrupted by stopping the backend is marked *Failed* and can be retried.
 - Analyses and the Company Brief are stored in this browser (localStorage). Projects are stored in `workspace-projects/` on this computer.

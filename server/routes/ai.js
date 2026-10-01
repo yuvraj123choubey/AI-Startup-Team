@@ -7,6 +7,7 @@ import { normalizeRoleResponse, safeResponse } from '../../src/services/response
 import { generateMockResponse } from '../../src/services/mockResponses.js'
 import { config } from '../config.js'
 import { AppError, sendError } from '../errors.js'
+import { accessGranted, rateLimit } from '../security.js'
 import { requestJson } from '../services/openaiService.js'
 
 const router = Router()
@@ -38,7 +39,8 @@ function cleanPrevious(previous) {
   return out
 }
 
-router.post('/role', async (req, res) => {
+// About one full Analyze run per minute per visitor.
+router.post('/role', rateLimit({ windowMs: 10 * 60 * 1000, max: 60, what: 'AI requests' }), async (req, res) => {
   try {
     const { roleId, task } = req.body || {}
     if (!WORKFLOW_ORDER.includes(roleId)) throw new AppError('bad_request', `Unknown role "${roleId}".`, { status: 400 })
@@ -46,6 +48,10 @@ router.post('/role', async (req, res) => {
     if (task.length > 4000) throw new AppError('bad_request', 'The task is too long (max 4,000 characters).', { status: 400 })
 
     const mode = resolveMode(req.body.mode)
+    // Live AI spends the owner's OpenAI credit, so it needs the access code when one is set.
+    if (mode === 'openai' && !accessGranted(req)) {
+      throw new AppError('access_code_required', 'Live AI is protected. Enter the founder access code on the New Task page, or use Simulated mode.', { status: 401, fatal: true })
+    }
     const brief = cleanBrief(req.body.brief)
     const previous = cleanPrevious(req.body.previous)
     const prompt = buildAnalysisPrompt(roleId, brief, task.trim(), previous)

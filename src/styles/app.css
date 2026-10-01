@@ -3385,3 +3385,19 @@ kbd {
   .segment { padding: 8px 12px; }
   .report-actions .btn { flex: 1 1 auto; }
 }
+
+/* ---------- 23. Access code (hosted backend) ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.access-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.access-form input {
+  height: 38px;
+  min-width: 220px;
+  padding: 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.88rem;
+}
+.access-form input:focus { outline: none; border-color: var(--accent); }
+.access-error { color: var(--danger); font-size: 0.85rem; }

@@ -53,6 +53,7 @@ export function retryBuild(projectId, engine) {
     p.operations = null
     p.approvals = []
     p.mockState = null
+    p.previewEnabled = false
     p.stages = Object.fromEntries(Object.keys(p.stages).map((id) => [id, { status: 'pending', note: 'Waiting' }]))
   })
   logActivity(projectId, 'system', 'info', `Founder restarted the build (${engine === 'openai' ? 'Live AI' : 'Simulated'} mode)`)

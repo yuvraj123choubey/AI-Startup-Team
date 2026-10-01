@@ -3,6 +3,7 @@
 import { Router } from 'express'
 import { config } from '../config.js'
 import { AppError, sendError } from '../errors.js'
+import { rateLimit, requireAccess } from '../security.js'
 import { resolveMode } from './ai.js'
 import { enqueueBuild, retryBuild } from '../services/aiOrchestrator.js'
 import { isOpenAiConfigured } from '../services/openaiService.js'
@@ -11,6 +12,10 @@ import { startPreview, stopPreview } from '../services/projectExecutor.js'
 import { createProject, deleteProject, getProject, isActive, listProjects, logActivity, publicProject, updateProject } from '../services/projectManager.js'
 
 const router = Router()
+
+// Build mode writes files and runs builds on the server: always behind the access code (when one is set).
+router.use(requireAccess)
+const buildLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, what: 'project builds this hour' })
 
 const handle = (fn) => async (req, res) => {
   try {
@@ -40,6 +45,7 @@ router.get('/', (req, res) => {
 
 router.post(
   '/',
+  buildLimit,
   handle((req, res) => {
     const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
     const task = typeof req.body?.task === 'string' ? req.body.task.trim() : ''
@@ -49,6 +55,9 @@ router.post(
     if (task.length > 2000) throw new AppError('bad_request', 'The task is too long (max 2,000 characters).', { status: 400 })
     const engine = resolveMode(req.body.mode)
     checkEngine(engine)
+    if (listProjects().length >= config.maxProjects) {
+      throw new AppError('too_many_projects', `There are already ${config.maxProjects} projects. Delete an old one first.`, { status: 400 })
+    }
     const brief = typeof req.body.brief === 'object' && req.body.brief ? Object.fromEntries(Object.entries(req.body.brief).filter(([, v]) => typeof v === 'string').map(([k, v]) => [k, v.slice(0, 2000)])) : {}
 
     const project = createProject({ name, task, brief, engine, model: engine === 'openai' ? config.openaiModel : null })
@@ -89,6 +98,13 @@ router.post(
     const project = getProject(id)
     if (isActive(project)) throw new AppError('busy', 'Wait for the build to finish before running the project.', { status: 409 })
     if (project.buildStatus !== 'passed') throw new AppError('not_built', 'The project has no passing build, so it cannot run.', { status: 400 })
+    if (config.hosted) {
+      // On a web host only one port is public, so the backend itself serves the built files.
+      updateProject(id, (p) => (p.previewEnabled = true))
+      const preview = publicProject(getProject(id)).preview
+      logActivity(id, 'system', 'info', `Founder published a preview at ${preview.url}`)
+      return res.json({ preview })
+    }
     const preview = await startPreview(id, projectDir(id))
     logActivity(id, 'system', 'info', `Founder started a local preview at ${preview.url}`)
     res.json({ preview })
@@ -99,14 +115,18 @@ router.post(
   '/:id/stop',
   handle((req, res) => {
     const id = withId(req)
-    getProject(id)
-    if (stopPreview(id)) logActivity(id, 'system', 'info', 'Founder stopped the local preview')
+    const project = getProject(id)
+    if (config.hosted && project.previewEnabled) {
+      updateProject(id, (p) => (p.previewEnabled = false))
+      logActivity(id, 'system', 'info', 'Founder stopped the preview')
+    } else if (stopPreview(id)) logActivity(id, 'system', 'info', 'Founder stopped the local preview')
     res.json({ ok: true })
   }),
 )
 
 router.post(
   '/:id/retry',
+  buildLimit,
   handle((req, res) => {
     const id = withId(req)
     const engine = resolveMode(req.body?.mode || getProject(id).engine)

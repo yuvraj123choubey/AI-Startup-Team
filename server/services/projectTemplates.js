@@ -39,6 +39,8 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react()],
+  // Relative asset paths, so the build also works when served from a sub-path (/preview/<id>/).
+  base: './',
 })
 `,
     },
