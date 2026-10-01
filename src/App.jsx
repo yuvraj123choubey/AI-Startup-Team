@@ -76,7 +76,7 @@ export default function App() {
       const health = await getHealth()
       setBackend({ status: 'online', ...health })
     } catch (err) {
-      setBackend({ status: 'offline', message: err.message })
+      setBackend({ status: 'offline', message: err.message, code: err.code })
     }
   }, [])
 

@@ -7,6 +7,7 @@ export default function EngineSwitch({ engine, backend, onChoose, onRefresh, dis
 
   let note
   if (backend.status === 'checking') note = 'Checking the backend…'
+  else if (backend.code === 'static_site') note = 'GitHub Pages demo: Analyze runs in Simulated mode. Build Project and Live AI need the backend, so run the project locally for those (npm run dev:all).'
   else if (backend.status === 'offline') note = 'Backend offline. Analyze still works in Simulated mode; Build Project and Live AI need the backend (npm run server).'
   else if (!backend.openaiConfigured) note = 'Backend connected. No OpenAI key is set, so Live AI is unavailable. Add OPENAI_API_KEY to .env and restart the backend.'
   else note = `Backend connected · OpenAI key configured${backend.model ? ` · ${backend.model}` : ''}. Live AI calls cost money on your OpenAI account.`
@@ -40,7 +41,7 @@ export default function EngineSwitch({ engine, backend, onChoose, onRefresh, dis
       </div>
       <p className={`engine-note ${backend.status === 'offline' || (engine === 'openai' && !liveReady) ? 'is-warn' : ''}`}>
         {note}
-        {backend.status === 'offline' && (
+        {backend.status === 'offline' && backend.code !== 'static_site' && (
           <button type="button" className="text-button inline engine-retry" onClick={onRefresh}>
             <Icon name="refresh" size={14} /> Check again
           </button>

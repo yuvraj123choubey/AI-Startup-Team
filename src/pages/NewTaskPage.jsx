@@ -124,11 +124,20 @@ export default function NewTaskPage({
         <p className="banner is-error quiet-target" role="alert">
           <Icon name="alert" size={18} />
           <span>
-            Build Project needs the backend, because it writes files and runs builds on this computer. Start it with <code>npm run server</code>, then{' '}
-            <button type="button" className="text-button inline" onClick={ai.onRefreshBackend}>
-              check again
-            </button>
-            .
+            Build Project needs the backend, because it writes files and runs builds on this computer.{' '}
+            {ai.backend.code === 'static_site' ? (
+              <>
+                This GitHub Pages version has no backend: run the project locally with <code>npm run dev:all</code> to build projects.
+              </>
+            ) : (
+              <>
+                Start it with <code>npm run server</code>, then{' '}
+                <button type="button" className="text-button inline" onClick={ai.onRefreshBackend}>
+                  check again
+                </button>
+                .
+              </>
+            )}
           </span>
         </p>
       )}

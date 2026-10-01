@@ -75,7 +75,7 @@ export default function ProjectsPage({ backend, onNavigate, onRefreshBackend }) 
             Switch the New Task page to <strong>Build Project</strong>, name the project, and describe it. The team creates the workspace, writes the code, builds it, and
             reviews it.
           </p>
-          {backend.status === 'offline' && <p className="note">The backend is offline. Start it with npm run server first.</p>}
+          {backend.status === 'offline' && backend.code !== 'static_site' && <p className="note">The backend is offline. Start it with npm run server first.</p>}
         </div>
       )}
 

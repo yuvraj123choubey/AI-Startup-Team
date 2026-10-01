@@ -15,7 +15,13 @@ export class ApiError extends Error {
 
 export const BACKEND_LABEL = BASE || 'http://localhost:3001 (via the Vite proxy)'
 
+// The GitHub Pages build is static: there is no backend to call, so requests fail fast with a clear message.
+export const STATIC_SITE = import.meta.env.VITE_STATIC_SITE === 'true' && !BASE
+
 export async function apiRequest(path, { method = 'GET', body, timeoutMs = 15000 } = {}) {
+  if (STATIC_SITE) {
+    throw new ApiError('static_site', 'This is the GitHub Pages demo, which has no backend. Build Project and Live AI work when you run the project locally with “npm run dev:all”.', { fatal: true })
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   let res

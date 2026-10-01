@@ -4,6 +4,8 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // GitHub Pages serves the site from /AI-Startup-Team/ (set by the deploy workflow); locally it is /.
+  base: process.env.PAGES_BASE || '/',
   server: {
     // /api/* goes to the Express backend (npm run server) when VITE_API_URL is not set.
     proxy: { '/api': 'http://localhost:3001' },
